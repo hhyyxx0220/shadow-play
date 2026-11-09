@@ -364,13 +364,13 @@
     msg.textContent = '正在加载手势库……';
     var stream;
     var importLib;
-    try { importLib = import('/vendor/mediapipe/vision_bundle.mjs'); } catch (e) { importLib = Promise.reject(e); }
+    try { importLib = import('../vendor/mediapipe/vision_bundle.mjs'); } catch (e) { importLib = Promise.reject(e); }
     importLib.then(function (lib) {
       if (!lib.FilesetResolver || !lib.HandLandmarker) throw new Error('vision_bundle.mjs 缺少必要导出');
       msg.textContent = '正在加载识别模型……';
-      return lib.FilesetResolver.forVisionTasks('/vendor/mediapipe/wasm').then(function (fileset) {
+      return lib.FilesetResolver.forVisionTasks('vendor/mediapipe/wasm').then(function (fileset) {
         return lib.HandLandmarker.createFromOptions(fileset, {
-          baseOptions: { modelAssetPath: '/vendor/models/hand_landmarker.task', delegate: 'GPU' },
+          baseOptions: { modelAssetPath: 'vendor/models/hand_landmarker.task', delegate: 'GPU' },
           runningMode: 'VIDEO',
           numHands: 2
         });
