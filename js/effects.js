@@ -211,9 +211,43 @@ window.CSP = window.CSP || {};
     ctx.restore();
   };
 
+  // 结印法阵：旋转双环 + 八方阵线 + 中「印」字
+  function Seal(x, y, color) {
+    this.x = x; this.y = y; this.color = color || '#9e3b2c';
+    this.t = 0; this.dur = 1.6;
+  }
+  Seal.prototype.update = function (dt) { this.t += dt; return this.t < this.dur; };
+  Seal.prototype.draw = function (ctx) {
+    var p = this.t / this.dur;
+    var a = p < 0.12 ? p / 0.12 : (p > 0.7 ? (1 - p) / 0.3 : 1);
+    var r = 30 + p * 90;
+    ctx.save();
+    ctx.globalAlpha = a * 0.9;
+    ctx.translate(this.x, this.y);
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 2;
+    ctx.shadowColor = this.color; ctx.shadowBlur = 12;
+    ctx.rotate(this.t * 1.5);
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, TAU); ctx.stroke();
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.7, 0, TAU); ctx.stroke();
+    for (var i = 0; i < 8; i++) {
+      var an = i * Math.PI / 4;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(an) * r * 0.7, Math.sin(an) * r * 0.7);
+      ctx.lineTo(Math.cos(an) * r, Math.sin(an) * r);
+      ctx.stroke();
+    }
+    ctx.rotate(-this.t * 3);
+    ctx.fillStyle = this.color;
+    ctx.font = '28px "Noto Serif SC","KaiTi",serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('印', 0, 0);
+    ctx.restore();
+  };
+
   function FX() {
     this.parts = []; this.slashes = []; this.rings = []; this.runes = [];
-    this.projectiles = []; this.bolts = []; this.stamps = []; this.winds = [];
+    this.projectiles = []; this.bolts = []; this.stamps = []; this.winds = []; this.seals = [];
     this.orbs = {};              // 蓄力球，按手侧 'L'/'R' 键存
     this.shake = 0; this.flash = 0;
     this.ambientT = 0;
@@ -238,6 +272,10 @@ window.CSP = window.CSP || {};
   };
   FX.prototype.wind = function (x, y, dir) {
     this.winds.push(new WindSlash(x, y, dir));
+  };
+  // 结印法阵
+  FX.prototype.seal = function (x, y, color) {
+    this.seals.push(new Seal(x, y, color));
   };
   // 金光福泽：金环 + 金屑 + 「福」字
   FX.prototype.halo = function (x, y) {
@@ -298,6 +336,7 @@ window.CSP = window.CSP || {};
     this.bolts = alive(this.bolts);
     this.stamps = alive(this.stamps);
     this.winds = alive(this.winds);
+    this.seals = alive(this.seals);
     Object.keys(this.orbs).forEach(function (k) { self.orbs[k].c += dt; });
   };
   FX.prototype.draw = function (ctx) {
@@ -310,6 +349,7 @@ window.CSP = window.CSP || {};
     this.bolts.forEach(function (b) { b.draw(ctx); });
     this.stamps.forEach(function (s) { s.draw(ctx); });
     this.winds.forEach(function (w) { w.draw(ctx); });
+    this.seals.forEach(function (s) { s.draw(ctx); });
     // 蓄力球
     Object.keys(this.orbs).forEach(function (k) {
       var o = self.orbs[k];

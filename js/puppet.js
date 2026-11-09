@@ -25,10 +25,15 @@ window.CSP = window.CSP || {};
     this.dir = { x: 0, y: -1 };       // 腕->掌心方向
     this.lean = 0;
     this.sizeFactor = 1;
+    this.swing = 0; this.swingV = 0;   // 提杆摆动（钟摆物理）
+    this.poseT = 0;                    // 换造型后的弹跳计时
   }
 
   SpritePuppet.prototype.setPose = function (pose) {
-    if (this.frames[pose]) this.pose = pose;
+    if (this.frames[pose] && pose !== this.pose) {
+      this.pose = pose;
+      this.poseT = 0;   // 触发换装弹跳
+    }
   };
 
   // 手消失时缓慢淡出
@@ -39,6 +44,7 @@ window.CSP = window.CSP || {};
   // pts: 已映射到画布坐标的 21 个关键点
   SpritePuppet.prototype.update = function (pts, dt, W, H) {
     this.t += dt;
+    this.poseT += dt;
     var wr = pts[0];
     var palm = { x: 0, y: 0 };
     [0, 5, 9, 13, 17].forEach(function (i) {
@@ -48,13 +54,20 @@ window.CSP = window.CSP || {};
     // 影人胸口悬在手掌下方，像被操纵杆提着
     var k = Math.min(1, dt * 6);
     var tx = palm.x, ty = palm.y + H * 0.10;
-    if (this.cx === null) { this.cx = tx; this.cy = ty; }
+    var prevX = this.cx;
+    if (this.cx === null) { this.cx = tx; this.cy = ty; prevX = tx; }
     else {
       this.cx += (tx - this.cx) * k;
       this.cy += (ty - this.cy) * k;
     }
     this.alpha = Math.min(1, this.alpha + dt * 3);
     this.palm = palm;
+
+    // 提杆摆动：影人移动越快，摆动越大，像被杆子甩着走（钟摆+阻尼）
+    var vx = (this.cx - prevX) / Math.max(dt, 0.001);
+    this.swingV += (-this.swing * 40 - vx * 0.00055) * dt;
+    this.swingV *= Math.pow(0.88, dt * 60);
+    this.swing = clamp(this.swing + this.swingV * dt, -0.3, 0.3);
 
     var dx = palm.x - wr.x, dy = palm.y - wr.y;
     var n = Math.hypot(dx, dy) || 1;
@@ -75,7 +88,9 @@ window.CSP = window.CSP || {};
     if (!img || !this.loaded[this.pose]) return;
 
     var targetH = H * 0.68 * this.sizeFactor;
-    var s = targetH / img.height;
+    // 换造型瞬间的弹跳（先放大再回落，让动作更"脆"）
+    var pop = 1 + 0.06 * Math.exp(-this.poseT * 10);
+    var s = targetH * pop / img.height;
     var w = img.width * s, h = img.height * s;
 
     // 操纵杆（淡墨，从幕底连到手中）
@@ -90,7 +105,7 @@ window.CSP = window.CSP || {};
     ctx.save();
     ctx.globalAlpha = this.alpha;
     ctx.translate(this.cx, this.cy);
-    ctx.rotate(this.lean + Math.sin(this.t * 1.2) * 0.012);
+    ctx.rotate(this.lean + this.swing + Math.sin(this.t * 1.2) * 0.012);
     // 纸上投影（像皮影贴在白色影窗上）
     ctx.shadowColor = 'rgba(46,41,35,0.30)';
     ctx.shadowOffsetX = 12; ctx.shadowOffsetY = 8; ctx.shadowBlur = 16;

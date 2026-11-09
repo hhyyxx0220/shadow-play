@@ -28,6 +28,7 @@ html, body {
   position: fixed; top: 18px; left: 0; right: 0;
   text-align: center; pointer-events: none; z-index: 5;
 }
+#btn-bgm { pointer-events: auto; }
 #hud-top h1 {
   font-size: 30px; letter-spacing: 14px; color: #2e2923;
 }
@@ -60,6 +61,31 @@ html, body {
   font-size: 12px; color: rgba(46, 41, 35, 0.55); letter-spacing: 2px;
 }
 
+/* 音乐开关（右上角） */
+#btn-bgm {
+  position: absolute; top: 4px; right: 22px;
+  font-size: 12px; letter-spacing: 2px;
+  color: #2e2923; background: rgba(255, 253, 246, 0.7);
+  border: 1px solid rgba(46, 41, 35, 0.35);
+  padding: 5px 12px; cursor: pointer; font-family: inherit;
+}
+#btn-bgm:hover { background: #fffdf6; }
+
+/* 丢手提醒条（中下方，淡入淡出） */
+#hand-tip {
+  font-size: 13px; letter-spacing: 2px; color: #9e3b2c;
+  background: rgba(255, 253, 246, 0.85);
+  border: 1px solid rgba(158, 59, 44, 0.4);
+  padding: 6px 18px;
+  opacity: 0; transition: opacity 0.5s;
+  animation: tipPulse 2s ease-in-out infinite;
+}
+#hand-tip.show { opacity: 1; }
+@keyframes tipPulse {
+  0%, 100% { box-shadow: 0 0 0 rgba(158, 59, 44, 0); }
+  50% { box-shadow: 0 0 14px rgba(158, 59, 44, 0.25); }
+}
+
 /* 开场遮罩 */
 #overlay {
   position: fixed; inset: 0; z-index: 10;
@@ -80,6 +106,7 @@ html, body {
 }
 .panel p { margin: 8px 0; font-size: 14px; color: #2e2923; letter-spacing: 2px; }
 .panel .hint { color: rgba(158, 59, 44, 0.9); font-size: 12px; }
+.panel .tip { color: rgba(46, 41, 35, 0.6); font-size: 12px; }
 #btn-start {
   margin-top: 22px; padding: 12px 42px;
   font-size: 16px; letter-spacing: 8px;

@@ -6,32 +6,44 @@
   var overlay = document.getElementById('overlay');
   var msg = document.getElementById('overlay-msg');
   var statusEl = document.getElementById('status');
+  var handTip = document.getElementById('hand-tip');
 
   var W = 0, H = 0, VW = 1280, VH = 720;
   var latest = null;
   var handleLast = 0, drawLast = 0;
   var fps = 0, fpsT = 0, fpsN = 0;
   var ultCd = 0, crossCd = 0;
+  var lastHandSeen = 0;
   var paperGrad = null;
 
   var fx = new CSP.FX();
-  // 左手 = 红衣旦角，右手 = 提灯仕女；不同手势切换不同造型
+  // 左手 = 红衣旦角，右手 = 提灯仕女；九种手势各配专属造型
   var puppetL = new CSP.SpritePuppet({
     id: 'L', fxColor: '#9e3b2c',
     frames: {
-      IDLE: 'assets/img/puppet-dan-red-open.png',
-      FIST: 'assets/img/puppet-dan-red-point.png',
+      IDLE: 'assets/img/puppet-dan-red-stand.png',
+      FIST: 'assets/img/puppet-dan-red-leap.png',
       PALM: 'assets/img/puppet-dan-red-open.png',
-      PINCH: 'assets/img/puppet-dan-red-pose.png'
+      PINCH: 'assets/img/puppet-dan-red-spin.png',
+      PEACE: 'assets/img/puppet-dan-red-glance.png',
+      HORNS: 'assets/img/puppet-dan-red-reach.png',
+      THREE: 'assets/img/puppet-dan-red-sleeve.png',
+      THUMB: 'assets/img/puppet-dan-red-pose.png',
+      OK: 'assets/img/puppet-dan-red-pose.png'
     }
   });
   var puppetR = new CSP.SpritePuppet({
     id: 'R', fxColor: '#a67c00',
     frames: {
-      IDLE: 'assets/img/puppet-lantern-gold-raise.png',
+      IDLE: 'assets/img/puppet-lantern-gold-walk.png',
       FIST: 'assets/img/puppet-lantern-gold-front.png',
       PALM: 'assets/img/puppet-lantern-gold-side.png',
-      PINCH: 'assets/img/puppet-lantern-gold-front.png'
+      PINCH: 'assets/img/puppet-lantern-gold-chest.png',
+      PEACE: 'assets/img/puppet-lantern-gold-front2.png',
+      HORNS: 'assets/img/puppet-lantern-gold-lean.png',
+      THREE: 'assets/img/puppet-lantern-gold-low.png',
+      THUMB: 'assets/img/puppet-lantern-gold-hoist.png',
+      OK: 'assets/img/puppet-lantern-gold-front.png'
     }
   });
   var stabL = new CSP.Stab(), stabR = new CSP.Stab();
@@ -40,10 +52,8 @@
 
   var POSE_ZH = {
     FIST: '斩', PALM: '术', PINCH: '弹',
-    PEACE: '书', HORNS: '雷', THREE: '扇', THUMB: '揖', IDLE: '待'
+    PEACE: '书', HORNS: '雷', THREE: '扇', THUMB: '揖', OK: '印', IDLE: '待'
   };
-  // 新手势复用已有影人造型
-  var FRAME_FOR = { PEACE: 'PALM', HORNS: 'FIST', THREE: 'PALM', THUMB: 'IDLE' };
 
   function resize() {
     W = cv.width = innerWidth;
@@ -107,6 +117,29 @@
     tone('sine', 660, 660, 0.4, 0.1);
     setTimeout(function () { tone('sine', 990, 990, 0.5, 0.08); }, 120);
   };
+  // 锣鼓点：鼓（咚）、镲（锵）、印（闷响）
+  var drum = function () { tone('sine', 150, 55, 0.28, 0.5); noiseBurst(0.08, 400, 0.15); };
+  var cymbal = function () { noiseBurst(0.35, 6000, 0.22); tone('square', 3000, 2000, 0.1, 0.03); };
+  var sealSnd = function () {
+    tone('triangle', 330, 330, 0.45, 0.18);
+    setTimeout(function () { tone('triangle', 495, 495, 0.5, 0.12); }, 110);
+  };
+
+  // ---------- 背景音乐（本地 BGM 素材） ----------
+  var bgm = null;
+  function startBgm() {
+    if (bgm) return;
+    bgm = new Audio('assets/audio/bgm.mp3');
+    bgm.loop = true;
+    bgm.volume = 0.35;
+    bgm.play().catch(function () { });
+  }
+  var bgmBtn = document.getElementById('btn-bgm');
+  bgmBtn.addEventListener('click', function () {
+    if (!bgm) { startBgm(); bgm.muted = false; }
+    else bgm.muted = !bgm.muted;
+    bgmBtn.textContent = bgm.muted ? '♫ 音乐·关' : '♫ 音乐·开';
+  });
 
   // ---------- 坐标映射（视频画面 cover 铺满画布 + 镜像） ----------
   function coverMap() {
@@ -137,6 +170,8 @@
     crossCd = Math.max(0, crossCd - dt);
     poseL = 'IDLE'; poseR = 'IDLE';
 
+    if (hands.length) lastHandSeen = now;
+
     [
       ['L', slots.L, puppetL, stabL, hsL],
       ['R', slots.R, puppetR, stabR, hsR]
@@ -144,6 +179,7 @@
       var side = row[0], h = row[1], pup = row[2], stab = row[3], st = row[4];
       if (!h) {
         pup.fadeOut(dt);
+        if (pup.alpha <= 0) pup.entered = false;   // 完全退场后，下次登场再打锣鼓
         st.prev = 'IDLE'; st.charge = 0;
         fx.setOrb(side, null, 0);
         return;
@@ -156,14 +192,20 @@
 
       var r = stab.push(CSP.classify(h.lm));
       var pose = r.pose;
-      pup.setPose(FRAME_FOR[pose] || pose);
+      pup.setPose(pose);
       if (side === 'L') poseL = pose; else poseR = pose;
+
+      // 影人首次登场：锣鼓点迎接
+      if (!pup.entered) {
+        pup.entered = true;
+        drum(); setTimeout(cymbal, 140);
+      }
 
       // 手势边沿触发
       if (pose !== st.prev) {
         if (pose === 'FIST') {
           fx.slash(pup.palm.x, pup.palm.y, pup.dir, pup.fxColor);
-          swish();
+          drum(); swish();
         } else if (pose === 'PALM') {
           fx.cast(pup.palm.x, pup.palm.y, pup.fxColor);
           chime();
@@ -174,13 +216,16 @@
           stampSnd();
         } else if (pose === 'HORNS') {
           fx.boltAt(pup.palm.x, pup.palm.y);
-          thunder();
+          thunder(); cymbal();
         } else if (pose === 'THREE') {
           fx.wind(pup.palm.x, pup.palm.y, pup.dir);
-          fanWhoosh();
+          drum(); fanWhoosh();
         } else if (pose === 'THUMB') {
           fx.halo(pup.palm.x, pup.palm.y);
           bless();
+        } else if (pose === 'OK') {
+          fx.seal(pup.palm.x, pup.palm.y, pup.fxColor);
+          sealSnd();
         }
         if (st.prev === 'PINCH' && pose !== 'PINCH' && st.charge > 0.15) {
           fx.fire(pup.palm.x, pup.palm.y, pup.dir, pup.fxColor);
@@ -277,6 +322,10 @@
 
     statusEl.textContent =
       '左·' + POSE_ZH[poseL] + '  右·' + POSE_ZH[poseR] + '  ·  ' + fps + ' FPS';
+
+    // 丢手提醒：摄像头开着但 1.5 秒没见手，给出中文提示（含暗光场景）
+    handTip.classList.toggle('show',
+      camOn && now - lastHandSeen > 1500);
   }
   requestAnimationFrame(function loop() { draw(); requestAnimationFrame(loop); });
 
@@ -310,6 +359,8 @@
 
   document.getElementById('btn-start').addEventListener('click', function () {
     initAudio();
+    startBgm();
+    this.disabled = true;
     msg.textContent = '正在加载手势库……';
     var stream;
     var importLib;
@@ -343,7 +394,17 @@
       overlay.classList.add('hide');
     }).catch(function (e) {
       if (stream) { try { stream.getTracks().forEach(function (t) { t.stop(); }); } catch (x) { } }
-      msg.textContent = '启动失败：' + (e && e.message ? e.message : e);
+      // 摄像头报错中文化
+      var zhMap = {
+        NotAllowedError: '摄像头权限被拒绝——请点击地址栏的摄像头图标，允许访问后重试',
+        PermissionDeniedError: '摄像头权限被拒绝——请在浏览器设置中允许摄像头访问',
+        NotFoundError: '未找到可用摄像头——请检查设备是否连接',
+        NotReadableError: '摄像头被其他程序占用——请关闭占用摄像头的软件后重试',
+        OverconstrainedError: '摄像头不支持所选分辨率——请换一台设备试试'
+      };
+      var name = e && e.name;
+      msg.textContent = '启动失败：' + (zhMap[name] || (e && e.message ? e.message : e));
+      document.getElementById('btn-start').disabled = false;
     });
   });
 })();
