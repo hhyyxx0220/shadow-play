@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>赛博皮影戏 · Cyber Shadow Play</title>
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<canvas id="stage"></canvas>
+<div id="scanlines"></div>
+<div id="vignette"></div>
+
+<header id="hud-top">
+  <h1>赛博皮影戏</h1>
+  <span class="sub">CYBER SHADOW PLAY · 以手为杆 · 以光为幕</span>
+</header>
+
+<div id="hud-bottom">
+  <div class="legend">
+    <span>握拳 · 斩</span>
+    <span>张掌 · 术</span>
+    <span>捏合 · 弹</span>
+    <span>双指 · 书</span>
+    <span>摇滚 · 雷</span>
+    <span>三指 · 扇</span>
+    <span>竖拇指 · 揖</span>
+    <span>双拳 · 合斩</span>
+    <span>双掌同张 · 合璧</span>
+  </div>
+  <div id="status">等待开场……</div>
+</div>
+
+<div id="overlay">
+  <div class="panel">
+    <h2>赛博皮影戏</h2>
+    <p>站到摄像头前，抬起手，你就是执杆人。</p>
+    <p class="hint">握拳出斩 · 张掌施术 · 捏合蓄弹 · 双掌同张合璧</p>
+    <button id="btn-start">开 启 皮 影 戏</button>
+    <p id="overlay-msg"></p>
+  </div>
+</div>
+
+<video id="video" playsinline></video>
+
+<script src="js/effects.js"></script>
+<script src="js/gestures.js"></script>
+<script src="js/puppet.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
